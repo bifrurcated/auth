@@ -1,0 +1,49 @@
+### POST register user
+POST http://localhost:8000/api/register
+Content-Type: application/json
+
+{
+  "first_name": "a",
+  "last_name": "A",
+  "email": "a@a.com",
+  "password": "a",
+  "password_confirm": "a"
+}
+
+### POST login user
+POST http://localhost:8000/api/login
+Content-Type: application/json
+
+{
+  "email": "a@a.com",
+  "password": "a"
+}
+
+> {% client.global.set("auth_token", response.body.token); %}
+
+### POST refresh token
+POST http://localhost:8000/api/refresh
+
+> {% client.global.set("auth_token", response.body.token); %}
+
+### Get user auth
+GET http://localhost:8000/api/user
+Authorization: Bearer {{auth_token}}
+
+### POST user logout
+POST http://localhost:8000/api/logout
+
+
+### POST forgot password
+POST http://localhost:8000/api/forgot
+Content-Type: application/json
+
+{
+  "email": "a@a.com"
+}
+
+### Get test CORS
+GET http://localhost:8000/api/user
+Authorization: Bearer {{auth_token}}
+Origin: http://localhost:4200
+Access-Control-Request-Method: GET

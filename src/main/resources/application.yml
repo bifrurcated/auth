@@ -1,0 +1,26 @@
+application:
+  frontend-default-url: http://localhost:4200
+  security:
+    access-token-validity: 20
+    refresh-token-validity: 10080
+    access-token-secret: very_long_and_secure_and_safe_access_key
+    refresh-token-secret: very_long_and_secure_and_safe_refresh_key
+    allowed-origins: http://localhost:4200,http://localhost:3000,http://localhost:8080
+spring:
+  mail:
+    host: 0.0.0.0
+    port: 1025
+  datasource:
+    url: jdbc:postgresql://localhost:5432/auth_db
+    username: postgres
+    password: 123
+  sql:
+    init:
+      platform: postgres
+      mode: always
+
+
+server:
+  port: 8000
+  error:
+    include-message: always
