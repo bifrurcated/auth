@@ -24,7 +24,7 @@ public class MailService {
         message.setFrom("noreply@bifrurcated.com");
         message.setTo(email);
         message.setSubject("Reset your password");
-        message.setText(String.format("Click <a href=\"%s/reset/%s\">here</a> to reset your password.", url, token));
+        message.setText(String.format("Click <a href=\"%s/api/reset/%s\">here</a> to reset your password.", url, token));
 
         javaMailSender.send(message);
     }

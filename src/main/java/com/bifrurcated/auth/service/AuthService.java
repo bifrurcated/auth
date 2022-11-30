@@ -111,4 +111,23 @@ public class AuthService {
 
         userRepo.save(user);
     }
+
+    public Boolean reset(String password, String passwordConfirm, String token) {
+        if (!Objects.equals(password, passwordConfirm)) {
+            throw new PasswordDoNotMatchError();
+        }
+
+        var user = userRepo.findByPasswordRecoveriesToken(token)
+                .orElseThrow(UserNotFoundError::new);
+
+        var passwordRecoveryIsRemoved = user.removePasswordRecoveryIf(passwordRecovery ->
+                Objects.equals(passwordRecovery.token(), token));
+
+        if (passwordRecoveryIsRemoved) {
+            user.setPassword(passwordEncoder.encode(password));
+            userRepo.save(user);
+        }
+
+        return passwordRecoveryIsRemoved;
+    }
 }

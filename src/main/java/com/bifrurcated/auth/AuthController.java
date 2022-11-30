@@ -1,7 +1,6 @@
 package com.bifrurcated.auth;
 
 import com.bifrurcated.auth.data.User;
-import com.bifrurcated.auth.error.UnauthenticatedError;
 import com.bifrurcated.auth.service.AuthService;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -120,5 +119,17 @@ public class AuthController {
         authService.forgot(forgotRequest.email(), originUrl);
 
         return new ForgotResponse("success");
+    }
+
+    record ResetResponse(String message) {}
+    record ResetRequest(String password, @JsonProperty("password_confirm") String passwordConfirm) {}
+
+    @PostMapping(value = "/reset/{token}")
+    public ResetResponse reset(@RequestBody ResetRequest request, @PathVariable(value = "token") String token) {
+        if (!authService.reset(request.password(), request.passwordConfirm(), token)) {
+            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "cannot reset pasword");
+        }
+
+        return new ResetResponse("success");
     }
 }

@@ -5,9 +5,9 @@ Content-Type: application/json
 {
   "first_name": "a",
   "last_name": "A",
-  "email": "a@a.com",
-  "password": "a",
-  "password_confirm": "a"
+  "email": "youremail@gmail.com",
+  "password": "qwe",
+  "password_confirm": "qwe"
 }
 
 ### POST login user
@@ -15,7 +15,7 @@ POST http://localhost:8000/api/login
 Content-Type: application/json
 
 {
-  "email": "a@a.com",
+  "email": "youremail@gmail.com",
   "password": "a"
 }
 
@@ -39,7 +39,7 @@ POST http://localhost:8000/api/forgot
 Content-Type: application/json
 
 {
-  "email": "a@a.com"
+  "email": "youremail@gmail.com"
 }
 
 ### Get test CORS
@@ -47,3 +47,14 @@ GET http://localhost:8000/api/user
 Authorization: Bearer {{auth_token}}
 Origin: http://localhost:4200
 Access-Control-Request-Method: GET
+
+### POST Reset password
+POST http://localhost:8000/api/reset/your_reset_password_token
+Origin: http://localhost:4200
+Access-Control-Request-Method: POST
+Content-Type: application/json
+
+{
+  "password": "asd",
+  "password_confirm": "asd"
+}
