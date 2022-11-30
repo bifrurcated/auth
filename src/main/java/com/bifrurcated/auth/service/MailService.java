@@ -2,8 +2,9 @@ package com.bifrurcated.auth.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.MimeMessageHelper;
+import org.springframework.mail.javamail.MimeMessagePreparator;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -20,11 +21,13 @@ public class MailService {
     public void sendForgotMessage(String email, String token, String baseUrl) {
         var url = baseUrl != null ? baseUrl : defaultFrontendUrl;
 
-        SimpleMailMessage message = new SimpleMailMessage();
-        message.setFrom("noreply@bifrurcated.com");
-        message.setTo(email);
-        message.setSubject("Reset your password");
-        message.setText(String.format("Click <a href=\"%s/api/reset/%s\">here</a> to reset your password.", url, token));
+        MimeMessagePreparator message = mimeMessage -> {
+            MimeMessageHelper msg = new MimeMessageHelper(mimeMessage, true, "UTF-8");
+            msg.setFrom("noreply@bifrurcated.com");
+            msg.setTo(email);
+            msg.setSubject("Reset your password");
+            msg.setText(String.format("Click <a href=\"%s/api/reset/%s\">here</a> to reset your password.", url, token), true);
+        };
 
         javaMailSender.send(message);
     }
