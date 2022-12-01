@@ -118,7 +118,7 @@ public class AuthService {
         }
 
         var user = userRepo.findByPasswordRecoveriesToken(token)
-                .orElseThrow(UserNotFoundError::new);
+                .orElseThrow(InvalidLinkError::new);
 
         var passwordRecoveryIsRemoved = user.removePasswordRecoveryIf(passwordRecovery ->
                 Objects.equals(passwordRecovery.token(), token));
