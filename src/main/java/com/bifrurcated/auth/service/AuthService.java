@@ -5,6 +5,7 @@ import com.bifrurcated.auth.data.Token;
 import com.bifrurcated.auth.data.User;
 import com.bifrurcated.auth.data.UserRepo;
 import com.bifrurcated.auth.error.*;
+import dev.samstevens.totp.code.CodeVerifier;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.relational.core.conversion.DbActionExecutionException;
@@ -24,6 +25,7 @@ public class AuthService {
     private final MailService mailService;
     private final Long accessTokenValidity;
     private final Long refreshTokenValidity;
+    private final CodeVerifier codeVerifier;
 
     @Autowired
     public AuthService(
@@ -33,7 +35,8 @@ public class AuthService {
             @Value("${application.security.refresh-token-secret}") String refreshTokenSecret,
             MailService mailService,
             @Value("${application.security.access-token-validity}") Long accessTokenValidity,
-            @Value("${application.security.refresh-token-validity}") Long refreshTokenValidity) {
+            @Value("${application.security.refresh-token-validity}") Long refreshTokenValidity,
+            CodeVerifier codeVerifier) {
         this.userRepo = userRepo;
         this.passwordEncoder = passwordEncoder;
         this.accessTokenSecret = accessTokenSecret;
@@ -41,6 +44,7 @@ public class AuthService {
         this.mailService = mailService;
         this.accessTokenValidity = accessTokenValidity;
         this.refreshTokenValidity = refreshTokenValidity;
+        this.codeVerifier = codeVerifier;
     }
 
     public User register(String firstName, String lastName, String email, String password, String passwordConfirm) {
@@ -63,7 +67,13 @@ public class AuthService {
         if (!passwordEncoder.matches(password, user.getPassword())) {
             throw new InvalidCredentialsError();
         }
-        var login = Login.of(user.getId(), accessTokenSecret, accessTokenValidity, refreshTokenSecret, refreshTokenValidity);
+
+        var login = Login.of(
+                user.getId(),
+                accessTokenSecret, accessTokenValidity,
+                refreshTokenSecret, refreshTokenValidity,
+                Objects.equals(user.getTfaSecret(), "")
+        );
         var refreshJwt = login.getRefreshToken();
 
         user.addToken(new Token(refreshJwt.getToken(), refreshJwt.getIssueAt(), refreshJwt.getExpiration()));
@@ -83,7 +93,7 @@ public class AuthService {
         userRepo.findByIdAndTokensRefreshTokenAndTokensExpiredAtGreaterThan(refreshJwt.getUserId(), refreshJwt.getToken(), refreshJwt.getExpiration())
                 .orElseThrow(UnauthenticatedError::new);
 
-        return Login.of(refreshJwt.getUserId(), accessTokenSecret, refreshJwt, refreshTokenValidity);
+        return Login.of(refreshJwt.getUserId(), accessTokenSecret, accessTokenValidity, refreshJwt, false);
     }
 
     public Boolean logout(String refreshToken) {
@@ -129,5 +139,34 @@ public class AuthService {
         }
 
         return passwordRecoveryIsRemoved;
+    }
+
+    public Login twoFactorLogin(Long id, String secret, String code, String refreshToken) {
+        var user = userRepo.findById(id)
+                .orElseThrow(InvalidCredentialsError::new);
+
+        var tfaSecret = !Objects.equals(user.getTfaSecret(), "") ? user.getTfaSecret() : secret;
+
+        if (!codeVerifier.isValidCode(tfaSecret, code)) {
+            throw new InvalidCredentialsError();
+        }
+
+        if (Objects.equals(user.getTfaSecret(), "")) {
+            user.setTfaSecret(secret);
+            userRepo.save(user);
+        }
+
+        var refreshJwt = Jwt.from(refreshToken, refreshTokenSecret);
+
+        userRepo.findByIdAndTokensRefreshTokenAndTokensExpiredAtGreaterThan(refreshJwt.getUserId(), refreshJwt.getToken(), refreshJwt.getExpiration())
+                .orElseThrow(UnauthenticatedError::new);
+
+        return Login.of(
+                refreshJwt.getUserId(),
+                accessTokenSecret,
+                accessTokenValidity,
+                refreshJwt,
+                false
+        );
     }
 }

@@ -30,4 +30,7 @@ CREATE TABLE IF NOT EXISTS password_recovery
     "user" BIGINT       NOT NULL,
 
     CONSTRAINT fk_password_recovery_user FOREIGN KEY ("user") REFERENCES usr (id)
-)
+);
+
+ALTER TABLE IF EXISTS usr
+ADD COLUMN IF NOT EXISTS tfa_secret VARCHAR(255) default '';

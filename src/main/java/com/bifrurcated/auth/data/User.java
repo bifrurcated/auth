@@ -27,19 +27,22 @@ public class User {
     private String email;
     @Getter @Setter
     private String password;
+    @Getter @Setter
+    private String tfaSecret;
     @MappedCollection private final Set<Token> tokens = new HashSet<>();
     @MappedCollection private final Set<PasswordRecovery> passwordRecoveries = new HashSet<>();
 
     public static User of(String firstName, String lastName, String email, String password) {
-        return new User(null, firstName, lastName, email, password, Collections.emptyList(), Collections.emptyList());
+        return new User(null, firstName, lastName, email, password, "", Collections.emptyList(), Collections.emptyList());
     }
     @PersistenceCreator
-    private User(Long id, String firstName, String lastName, String email, String password, Collection<Token> tokens, Collection<PasswordRecovery> passwordRecoveries) {
+    private User(Long id, String firstName, String lastName, String email, String password, String tfaSecret, Collection<Token> tokens, Collection<PasswordRecovery> passwordRecoveries) {
         this.id = id;
         this.firstName = firstName;
         this.lastName = lastName;
         this.email = email;
         this.password = password;
+        this.tfaSecret = tfaSecret;
         this.tokens.addAll(tokens);
         this.passwordRecoveries.addAll(passwordRecoveries);
     }

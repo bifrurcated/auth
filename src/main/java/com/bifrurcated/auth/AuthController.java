@@ -4,6 +4,7 @@ import com.bifrurcated.auth.data.User;
 import com.bifrurcated.auth.service.AuthService;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
@@ -18,10 +19,12 @@ import javax.servlet.http.HttpServletResponse;
 public class AuthController {
 
     private final AuthService authService;
+    private final Integer refreshTokenValidity;
 
     @Autowired
-    public AuthController(AuthService authService) {
+    public AuthController(AuthService authService, @Value("${application.security.refresh-token-validity}") Integer refreshTokenValidity) {
         this.authService = authService;
+        this.refreshTokenValidity = refreshTokenValidity;
     }
 
     record RegisterRequest(
@@ -55,20 +58,24 @@ public class AuthController {
             String email,
             String password
     ) {}
-    record LoginResponse(String token) {}
+    record LoginResponse(
+            Long id,
+            String secret,
+            @JsonProperty("otpauth_url") String otpAuthUtl
+    ) {}
 
     @PostMapping(value = "/login")
     public LoginResponse login(@RequestBody LoginRequest loginRequest, HttpServletResponse response) {
         var login = authService.login(loginRequest.email(), loginRequest.password());
 
         Cookie cookie = new Cookie("refresh_token", login.getRefreshToken().getToken());
-        cookie.setMaxAge(3600);
+        cookie.setMaxAge(refreshTokenValidity);
         cookie.setHttpOnly(true);
         cookie.setPath("/api");
 
         response.addCookie(cookie);
 
-        return new LoginResponse(login.getAccessToken().getToken());
+        return new LoginResponse(login.getAccessToken().getUserId(), login.getOtpSecret(), login.getOptUrl());
     }
 
     record UserResponse(
@@ -131,5 +138,21 @@ public class AuthController {
         }
 
         return new ResetResponse("success");
+    }
+
+    record TwoFactorResponse(String token) {}
+    record TwoFactorRequest(Long id, String secret, String code) {}
+
+    @PostMapping(value = "/two-factor")
+    public TwoFactorResponse twoFactor(@RequestBody TwoFactorRequest twoFactorRequest, @CookieValue("refresh_token") String refreshToken) {
+
+        var login = authService.twoFactorLogin(
+                twoFactorRequest.id(),
+                twoFactorRequest.secret(),
+                twoFactorRequest.code(),
+                refreshToken
+        );
+
+        return new TwoFactorResponse(login.getAccessToken().getToken());
     }
 }
