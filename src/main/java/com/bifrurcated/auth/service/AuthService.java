@@ -181,6 +181,7 @@ public class AuthService {
     }
 
     public Login googleOAuth2Login(String idTokenString) throws GeneralSecurityException, IOException {
+        // TODO add check user if exists by email
         HttpTransport transport = new NetHttpTransport();
         JsonFactory jsonFactory = new GsonFactory();
         GoogleIdTokenVerifier verifier = new GoogleIdTokenVerifier.Builder(transport, jsonFactory)
@@ -204,13 +205,14 @@ public class AuthService {
         String name = (String) payload.get("name");
         String familyName = (String) payload.get("family_name");
 
-        final String password = "google";
+        //TODO how to use password? so?
+        final String password = "";
         User user;
         try {
             if (familyName == null) {
                 familyName = "";
             }
-            user = userRepo.save(User.of(name, familyName, email, passwordEncoder.encode(password)));
+            user = userRepo.save(User.of(name, familyName, email, password));
         } catch (DbActionExecutionException exception) {
             throw new EmailAlreadyExistsError();
         }
