@@ -5,6 +5,13 @@ import com.bifrurcated.auth.data.Token;
 import com.bifrurcated.auth.data.User;
 import com.bifrurcated.auth.data.UserRepo;
 import com.bifrurcated.auth.error.*;
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken.Payload;
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
+import com.google.api.client.http.HttpTransport;
+import com.google.api.client.http.javanet.NetHttpTransport;
+import com.google.api.client.json.JsonFactory;
+import com.google.api.client.json.gson.GsonFactory;
 import dev.samstevens.totp.code.CodeVerifier;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -12,6 +19,9 @@ import org.springframework.data.relational.core.conversion.DbActionExecutionExce
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.io.IOException;
+import java.security.GeneralSecurityException;
+import java.util.Collections;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -168,5 +178,53 @@ public class AuthService {
                 refreshJwt,
                 false
         );
+    }
+
+    public Login googleOAuth2Login(String idTokenString) throws GeneralSecurityException, IOException {
+        HttpTransport transport = new NetHttpTransport();
+        JsonFactory jsonFactory = new GsonFactory();
+        GoogleIdTokenVerifier verifier = new GoogleIdTokenVerifier.Builder(transport, jsonFactory)
+                .setAudience(Collections.singletonList("YOUR_CLIENT_ID.apps.googleusercontent.com"))
+                .build();
+
+        GoogleIdToken idToken = verifier.verify(idTokenString);
+
+        if (idToken == null) {
+            throw new InvalidCredentialsError();
+        }
+
+        Payload payload = idToken.getPayload();
+
+        // Print user identifier
+        String userId = payload.getSubject();
+        System.out.println("User ID: " + userId);
+
+        // Get profile information from payload
+        String email = payload.getEmail();
+        String name = (String) payload.get("name");
+        String familyName = (String) payload.get("family_name");
+
+        final String password = "google";
+        User user;
+        try {
+            if (familyName == null) {
+                familyName = "";
+            }
+            user = userRepo.save(User.of(name, familyName, email, passwordEncoder.encode(password)));
+        } catch (DbActionExecutionException exception) {
+            throw new EmailAlreadyExistsError();
+        }
+        var login = Login.of(
+                user.getId(),
+                accessTokenSecret, accessTokenValidity,
+                refreshTokenSecret, refreshTokenValidity,
+                false
+        );
+        var refreshJwt = login.getRefreshToken();
+
+        user.addToken(new Token(refreshJwt.getToken(), refreshJwt.getIssueAt(), refreshJwt.getExpiration()));
+        userRepo.save(user);
+
+        return login;
     }
 }

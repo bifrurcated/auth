@@ -13,6 +13,8 @@ import org.springframework.web.server.ResponseStatusException;
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.security.GeneralSecurityException;
 
 @RestController
 @RequestMapping(value = "/api")
@@ -61,7 +63,7 @@ public class AuthController {
     record LoginResponse(
             Long id,
             String secret,
-            @JsonProperty("otpauth_url") String otpAuthUtl
+            @JsonProperty("otpauth_url") String otpAuthUrl
     ) {}
 
     @PostMapping(value = "/login")
@@ -154,5 +156,22 @@ public class AuthController {
         );
 
         return new TwoFactorResponse(login.getAccessToken().getToken());
+    }
+
+    record GoogleOAuth2Response(String token) {}
+    record GoogleOAuth2Request(@JsonProperty("token") String idToken) {}
+
+    @PostMapping(value = "/google-oauth2")
+    public GoogleOAuth2Response googleOAuth2(@RequestBody GoogleOAuth2Request request, HttpServletResponse response) throws GeneralSecurityException, IOException {
+        var login = authService.googleOAuth2Login(request.idToken());
+
+        Cookie cookie = new Cookie("refresh_token", login.getRefreshToken().getToken());
+        cookie.setMaxAge(refreshTokenValidity);
+        cookie.setHttpOnly(true);
+        cookie.setPath("/api");
+
+        response.addCookie(cookie);
+
+        return new GoogleOAuth2Response(login.getAccessToken().getToken());
     }
 }
