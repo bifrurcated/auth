@@ -8,10 +8,6 @@ import com.bifrurcated.auth.error.*;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken.Payload;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
-import com.google.api.client.http.HttpTransport;
-import com.google.api.client.http.javanet.NetHttpTransport;
-import com.google.api.client.json.JsonFactory;
-import com.google.api.client.json.gson.GsonFactory;
 import dev.samstevens.totp.code.CodeVerifier;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -21,7 +17,6 @@ import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.security.GeneralSecurityException;
-import java.util.Collections;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -35,6 +30,7 @@ public class AuthService {
     private final MailService mailService;
     private final Long accessTokenValidity;
     private final Long refreshTokenValidity;
+    private final GoogleIdTokenVerifier googleVerifier;
     private final CodeVerifier codeVerifier;
 
     @Autowired
@@ -46,6 +42,7 @@ public class AuthService {
             MailService mailService,
             @Value("${application.security.access-token-validity}") Long accessTokenValidity,
             @Value("${application.security.refresh-token-validity}") Long refreshTokenValidity,
+            GoogleIdTokenVerifier googleVerifier,
             CodeVerifier codeVerifier) {
         this.userRepo = userRepo;
         this.passwordEncoder = passwordEncoder;
@@ -54,6 +51,7 @@ public class AuthService {
         this.mailService = mailService;
         this.accessTokenValidity = accessTokenValidity;
         this.refreshTokenValidity = refreshTokenValidity;
+        this.googleVerifier = googleVerifier;
         this.codeVerifier = codeVerifier;
     }
 
@@ -181,41 +179,34 @@ public class AuthService {
     }
 
     public Login googleOAuth2Login(String idTokenString) throws GeneralSecurityException, IOException {
-        // TODO add check user if exists by email
-        HttpTransport transport = new NetHttpTransport();
-        JsonFactory jsonFactory = new GsonFactory();
-        GoogleIdTokenVerifier verifier = new GoogleIdTokenVerifier.Builder(transport, jsonFactory)
-                .setAudience(Collections.singletonList("YOUR_CLIENT_ID.apps.googleusercontent.com"))
-                .build();
-
-        GoogleIdToken idToken = verifier.verify(idTokenString);
+        GoogleIdToken idToken = googleVerifier.verify(idTokenString);
 
         if (idToken == null) {
             throw new InvalidCredentialsError();
         }
 
         Payload payload = idToken.getPayload();
-
-        // Print user identifier
-        String userId = payload.getSubject();
-        System.out.println("User ID: " + userId);
-
-        // Get profile information from payload
         String email = payload.getEmail();
-        String name = (String) payload.get("name");
-        String familyName = (String) payload.get("family_name");
 
-        //TODO how to use password? so?
-        final String password = "";
         User user;
-        try {
-            if (familyName == null) {
-                familyName = "";
+        var optionalUser = userRepo.findByEmail(email);
+        if (optionalUser.isEmpty()) {
+            String givenName = (String) payload.get("given_name");
+            String familyName = (String) payload.get("family_name");
+            final String password = "";
+            try {
+                if (familyName == null) {
+                    familyName = "";
+                }
+                user = userRepo.save(User.of(givenName, familyName, email, password));
+            } catch (DbActionExecutionException exception) {
+                throw new EmailAlreadyExistsError();
             }
-            user = userRepo.save(User.of(name, familyName, email, password));
-        } catch (DbActionExecutionException exception) {
-            throw new EmailAlreadyExistsError();
+        } else {
+            user = optionalUser.get();
         }
+
+
         var login = Login.of(
                 user.getId(),
                 accessTokenSecret, accessTokenValidity,
