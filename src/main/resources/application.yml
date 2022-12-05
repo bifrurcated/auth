@@ -3,16 +3,17 @@ application:
   security:
     access-token-validity: 20
     refresh-token-validity: 10080
-    access-token-secret: very_long_and_secure_and_safe_access_key
-    refresh-token-secret: very_long_and_secure_and_safe_refresh_key
+    access-token-secret: ${ACCESS_TOKEN_SECRET}
+    refresh-token-secret: ${REFRESH_TOKEN_SECRET}
     allowed-origins: http://localhost:4200,http://localhost:3000,http://localhost:8080
+    google-client-id: ${GOOGLE_CLIENT_ID}
 spring:
   mail:
     host: smtp.gmail.com
     port: 587
     protocol: smtp
-    username: xxx@gmail.com
-    password: xxxxxxxxxxxxxxxx
+    username: ${GOOGLE_MAIL_USERNAME}
+    password: ${GOOGLE_MAIL_PASSWORD}
     test-connection: true
     properties:
       "mail.smtp.auth": true
